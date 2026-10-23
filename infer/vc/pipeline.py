@@ -51,6 +51,7 @@ class Pipeline(object):
             config.x_max,
             config.is_half,
         )
+        self.is_half = False
         self.sr = 16000  # hubert输入采样率
         self.window = 160  # 每帧点数
         self.t_pad = self.sr * self.x_pad  # 每条前后pad时间
@@ -103,6 +104,7 @@ class Pipeline(object):
                     is_half=self.is_half,
                     device=self.device,
                 )
+            self.model_rmvpe.model = self.model_rmvpe.model.float()  # ← 加上這行
             f0 = self.model_rmvpe.infer_from_audio(x, thred=0.03)
 
             if "privateuseone" in str(self.device):  # clean ortruntime memory
@@ -129,6 +131,7 @@ class Pipeline(object):
             traceback.print_exc()
         f0 *= pow(2, f0_up_key / 12)
         f0bak = f0.copy()
+        f0bak = f0bak.astype(np.float32)  # ← 強制轉換
         f0_mel = 1127 * np.log(1 + f0 / 700)
         f0_mel[f0_mel > 0] = (f0_mel[f0_mel > 0] - f0_mel_min) * 254 / (
             f0_mel_max - f0_mel_min
@@ -153,11 +156,13 @@ class Pipeline(object):
         version,
         protect,
     ):
-        feats = torch.from_numpy(audio0)
+        feats = torch.from_numpy(audio0).float()  # 不管 is_half 都用 float
+        '''
         if self.is_half:
             feats = feats.half()
         else:
             feats = feats.float()
+        '''
         if feats.dim() == 2:  # double channels
             feats = feats.mean(-1)
         assert feats.dim() == 1, feats.dim()

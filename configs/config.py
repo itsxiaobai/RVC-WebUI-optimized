@@ -40,7 +40,7 @@ def get_device_dtype_sm(idx) :
     if sm_version == 6.1 or is_16_series:
         return cuda, torch.float32, sm_version, mem_gb
     if sm_version > 6.1:
-        return cuda, torch.float16, sm_version, mem_gb
+        return cuda, torch.float32, sm_version, mem_gb # 原為 float16，但在 Quadro T1000 會出錯
     return cpu, torch.float32, 0.0, 0.0
 
 
@@ -159,7 +159,10 @@ class Config:
     def __init__(self):
         self.device = str(infer_device)
         self.dtype = infer_dtype
-        self.is_half = infer_dtype == torch.float16
+        # self.is_half = infer_dtype == torch.float16
+        # 改成（強制）
+        self.is_half = False
+        self.dtype = torch.float32  # 保持一致
         self.cuda_graph = CUDA_GRAPH_AVAILABLE
         self.n_cpu = 0
         self.gpu_name = None
@@ -224,7 +227,7 @@ class Config:
             i_device = infer_device.index
             self.device = str(infer_device)
             self.dtype = infer_dtype
-            self.is_half = infer_dtype == torch.float16
+            self.is_half = infer_dtype == torch.float32 # 原為 float16
             self.gpu_name = torch.cuda.get_device_name(i_device)
             self.gpu_mem = int(infer_gpu_mem)
             logger.info(

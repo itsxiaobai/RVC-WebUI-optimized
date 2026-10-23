@@ -35,7 +35,7 @@ def load_hubert_model(device, is_half=False):
             f"Transformers HuBERT model not found: {HUBERT_MODEL_PATH}"
         )
 
-    dtype = torch.float16 if is_half else torch.float32
+    dtype = torch.float32 # 強制 FP32，忽略 is_half 參數
     load_options = {
         "local_files_only": True,
         "torch_dtype": dtype,
@@ -54,6 +54,10 @@ def load_hubert_model(device, is_half=False):
         str(HUBERT_MODEL_PATH), **load_options
     )
     model = model.to(device)
+
+    # 再加一層保險
+    model = model.float()  
+
     return model.eval()
 
 

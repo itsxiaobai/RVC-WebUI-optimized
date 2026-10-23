@@ -10,8 +10,6 @@
 #   python -m pip install -r requirments_cu118_py312.txt
 # Windows portable runtime users may replace `python` with `runtime\python.exe -I`.
 
---index-url https://mirrors.pku.edu.cn/pypi/simple
-
 # Packaging support. Gradio 3.14 still imports pkg_resources, so Setuptools
 # must remain on the last generation that provides it.
 setuptools>=75.0,<81

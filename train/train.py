@@ -43,7 +43,9 @@ from i18n.i18n import I18nAuto
 i18n = I18nAuto()
 
 training_dtype = get_training_dtype()
-training_is_half = training_dtype == torch.float16
+# training_is_half = training_dtype == torch.float16
+training_dtype = torch.float32
+training_is_half = False
 
 from torch.cuda.amp import GradScaler, autocast
 
@@ -60,7 +62,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from infer.module import commons
-from train.data_utils import (
+from .data_utils import (
     DistributedBucketSampler,
     TextAudioCollate,
     TextAudioCollateMultiNSFsid,
@@ -81,17 +83,19 @@ else:
         MultiPeriodDiscriminatorV2 as MultiPeriodDiscriminator,
     )
 
-from train.losses import (
+from .losses import (
     discriminator_loss,
     feature_loss,
     generator_loss,
     kl_loss,
 )
-from train.mel_processing import mel_spectrogram_torch, spec_to_mel_torch
-from train.process_ckpt import savee
+from .mel_processing import mel_spectrogram_torch, spec_to_mel_torch
+from .process_ckpt import savee
 
 global_step = 0
-
+LEARNING_RATE = 1e-5 # 4GB VRAM 專屬學習率
+# 強制使用 FP32
+training_is_half = False
 
 class EpochRecorder:
     def __init__(self):
@@ -221,15 +225,18 @@ def run(rank, n_gpus, hps, logger, use_ddp):
     net_d = MultiPeriodDiscriminator(hps.model.use_spectral_norm)
     if torch.cuda.is_available():
         net_d = net_d.cuda(rank)
+
+
+
     optim_g = torch.optim.AdamW(
         net_g.parameters(),
-        hps.train.learning_rate,
+        LEARNING_RATE,  # ← 替換 hps.train.learning_rate
         betas=hps.train.betas,
         eps=hps.train.eps,
     )
     optim_d = torch.optim.AdamW(
         net_d.parameters(),
-        hps.train.learning_rate,
+        LEARNING_RATE,  # ← 替換 hps.train.learning_rate
         betas=hps.train.betas,
         eps=hps.train.eps,
     )

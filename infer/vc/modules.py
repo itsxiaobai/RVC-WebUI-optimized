@@ -193,7 +193,7 @@ class VC:
         self.net_g.load_state_dict(self.cpt["weight"], strict=False)
         self.net_g.eval().to(self.config.device)
         if self.config.is_half:
-            self.net_g = self.net_g.half()
+            self.net_g = self.net_g.float() # 原為 half
         else:
             self.net_g = self.net_g.float()
 

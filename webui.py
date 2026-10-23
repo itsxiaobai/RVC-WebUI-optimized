@@ -5,6 +5,9 @@ import copy
 import re
 import warnings
 
+os.environ["RVC_OFFLINE_CUDA_GRAPH"] = "0"  # ← 強制關閉
+os.environ["RVC_CUDA_GRAPH"] = "0"  # ← 再加一個保險
+
 warnings.filterwarnings(
     "ignore",
     message=r"pkg_resources is deprecated as an API.*",
@@ -777,7 +780,37 @@ def train_task_stopped(state):
 
 
 def start_train_process(state, cmd):
+    normalized = cmd.replace("\\", "/")
+    is_train_entry = "train/train.py" in normalized
+
+    # train/xxx.py -> -m train.xxx
+    # 讓 sys.path[0] 變成專案根目錄，避免 train/ 目錄遮蔽 train 套件
+    cmd = re.sub(
+        r"(?<![\w./-])train/([A-Za-z0-9_/]+)\.py",
+        lambda match: "-m train." + match.group(1).replace("/", "."),
+        cmd,
+    )
+
     kwargs = {"shell": True, "cwd": now_dir}
+    training_env = os.environ.copy()
+    training_env["PYTHONPATH"] = now_dir
+    if is_train_entry:
+        training_env["RVC_CUDA_GRAPH"] = "0"
+    kwargs["env"] = training_env
+
+    if platform.system() == "Windows":
+        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        kwargs["start_new_session"] = True
+    logger.info("%s: %s", i18n("執行命令"), cmd)
+    process = Popen(cmd, **kwargs)
+    with TRAIN_TASK_LOCK:
+        state["processes"].append(process)
+        stopped = state["stop_requested"]
+    if stopped:
+        kill_process_tree(process, state["name"], logger)
+    return process
+'''
     if "train/train.py" in cmd.replace("\\", "/"):
         training_env = os.environ.copy()
         training_env["RVC_CUDA_GRAPH"] = "0"
@@ -794,6 +827,8 @@ def start_train_process(state, cmd):
     if stopped:
         kill_process_tree(process, state["name"], logger)
     return process
+
+'''
 
 
 def wait_train_processes(
